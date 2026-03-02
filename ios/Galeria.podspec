@@ -23,17 +23,25 @@ Pod::Spec.new do |s|
   s.dependency 'ExpoModulesCore'
   s.dependency 'SDWebImage'
 
-  spm_dependency(s,
-    url: "https://github.com/b3ll/Motion.git",
-    requirement: {kind: "branch", branch: "main"},
-    products: ["Motion"]
-  )
+  # Motion SPM package is added to the main Xcode project by the Expo config
+  # plugin (app.plugin.js). The pod finds Motion's built modules via
+  # SWIFT_INCLUDE_PATHS pointing at the shared build products directory.
+  # See: https://github.com/nandorojo/galeria/issues/110
+  spm_checkouts = '${SYMROOT}/../../SourcePackages/checkouts'
 
-  # Swift/Objective-C compatibility
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',
     'SWIFT_COMPILATION_MODE' => 'wholemodule',
-    'OTHER_SWIFT_FLAGS' => "$(inherited) #{new_arch_enabled ? new_arch_compiler_flags : ''}"
+    'OTHER_SWIFT_FLAGS' => [
+      '$(inherited)',
+      new_arch_enabled ? new_arch_compiler_flags : '',
+      "-Xcc -fmodule-map-file=#{spm_checkouts}/swift-numerics/Sources/_NumericsShims/include/module.modulemap",
+    ].reject(&:empty?).join(' '),
+    'SWIFT_INCLUDE_PATHS' => [
+      '$(inherited)',
+      '"${SYMROOT}/${CONFIGURATION}${EFFECTIVE_PLATFORM_NAME}/"',
+      "\"#{spm_checkouts}/swift-numerics/Sources/_NumericsShims/include\"",
+    ].join(' '),
   }
 
   s.source_files = "**/*.{h,m,swift}"
